@@ -3,14 +3,20 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Friend Cards – gestures + responsive + bg image</title>
+<title>Friend Cards – unified gestures</title>
 <style>
-  :root {
-    /* responsive card sizing */
+  :root{
     --card-w: clamp(280px, 92vw, 420px);
     --radius: 16px;
     --shadow: 0 10px 30px rgba(0,0,0,.15);
+
+    /* transform state */
+    --tx: 0px;         /* translateX */
+    --ty: 0px;         /* translateY */
+    --rz: 0deg;        /* rotateZ (tilt) */
+    --ry: 0deg;        /* rotateY (flip/spin) */
   }
+
   *{box-sizing:border-box}
   body{
     margin:0;min-height:100dvh;display:grid;place-items:center;background:#f6f7fb;
@@ -18,19 +24,22 @@
   }
   .wrap{width:min(96vw,560px);padding:10px}
   .status{text-align:center;margin-bottom:12px;font-size:14px;color:#555}
+
   .stage{
     width:var(--card-w);
-    aspect-ratio: 320 / 460;           /* preserves original proportions, scales fluidly */
+    aspect-ratio: 320 / 460;
     margin:auto;perspective:1200px;position:relative
   }
 
   .card{
     position:absolute;inset:0;border-radius:var(--radius);box-shadow:var(--shadow);
-    transform-style:preserve-3d;transition:transform .5s cubic-bezier(.22,.61,.36,1);
-    touch-action:none;                  /* we handle both axes for swipes */
-    background:#000; overflow:hidden; isolation:isolate;
+    transform-style:preserve-3d;
+    /* compose transforms from vars so animations don’t clash */
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rz)) rotateY(var(--ry));
+    transition: transform .35s cubic-bezier(.22,.61,.36,1);
+    touch-action:none; background:#000; overflow:hidden; isolation:isolate;
+    will-change: transform;
   }
-  .card.flipped{transform:rotateY(180deg)}
 
   .side{
     position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
@@ -44,7 +53,7 @@
   .bg{
     position:absolute; inset:0; z-index:-1;
     background:#111 center/cover no-repeat;
-    transform:scale(1.02); /* small overscan to hide edge gaps during rotate/drag */
+    transform:scale(1.02);
     filter:saturate(1.02);
   }
   .front::before{
@@ -75,20 +84,11 @@
   .nav button.btn{border:0;background:#22c55e;color:#fff}
 
   .index{text-align:center;margin-top:10px;color:#6b7280;font-size:13px}
-
-  /* like (swipe up) badge */
-  .likeBadge{
-    position:absolute; left:50%; top:14%;
-    transform:translate(-50%,-50%) scale(.9);
-    background:rgba(34,197,94,.95); color:#fff; padding:8px 12px; border-radius:999px; font-weight:800;
-    letter-spacing:.3px; opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;
-  }
-  .likeBadge.show{opacity:1; transform:translate(-50%,-50%) scale(1)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="status">tap/click = flip · double = call · drag left/right = swipe · drag up = like</div>
+  <div class="status">tap = spin 360° and show bio · drag left/right = next/prev · drag up = next · double = call</div>
 
   <div class="stage">
     <div class="card" id="card">
@@ -99,8 +99,7 @@
           <div class="name" id="name">name</div>
           <div class="gem" id="gems">0</div>
         </div>
-        <div class="likeBadge" id="likeBadge">liked +1</div>
-        <div class="hint">tap once to flip · double to call · swipe left/right to browse · swipe up to like</div>
+        <div class="hint">tap once to spin & reveal bio · swipe left/right to browse · swipe up to advance</div>
       </div>
 
       <!-- BACK -->
@@ -139,10 +138,19 @@
     flipBack: document.getElementById('flipBack'),
     callBtn: document.getElementById('callBtn'),
     index: document.getElementById('index'),
-    likeBadge: document.getElementById('likeBadge'),
   };
 
-  let i = 0, flipped = false;
+  let i = 0;
+  let spinning = false;       // prevents gesture jitter during spin
+  let showingBack = false;    // logical state of which face we intend to show
+  let ryDeg = 0;              // rotateY in degrees (source of truth)
+
+  function applyTransformVars(tx=0, ty=0, rz=0, ry=ryDeg){
+    els.card.style.setProperty('--tx', tx+'px');
+    els.card.style.setProperty('--ty', ty+'px');
+    els.card.style.setProperty('--rz', rz+'deg');
+    els.card.style.setProperty('--ry', ry+'deg');
+  }
 
   function render(idx){
     const f = friends[idx];
@@ -153,12 +161,11 @@
     els.bio.textContent = f.bio;
     els.phone.textContent = f.phone;
     els.index.textContent = `${idx+1} / ${friends.length}`;
-    if (flipped) flip(false);
-  }
 
-  function flip(to=!flipped){
-    flipped = to;
-    els.card.classList.toggle('flipped', flipped);
+    // normalize orientation to front by default when switching cards
+    showingBack = false;
+    ryDeg = 0;
+    applyTransformVars(0,0,0,ryDeg);
   }
 
   function callFriend(){
@@ -173,16 +180,44 @@
     render(i);
   }
 
-  // ---------- unified gestures (now X + Y) ----------
+  // ---------- tap spin (360° visual, ends on opposite face) ----------
+  function spinAndReveal(){
+    if (spinning) return;
+    spinning = true;
+
+    // target: full spin (360) + flip (additional 180) so we end on the other face without a snap
+    const delta = 540; // 360 + 180
+    const start = ryDeg;
+    const end = ryDeg + delta;
+
+    // use WAAPI for glitch-free animation; composite: replace (we drive CSS vars)
+    const anim = els.card.animate(
+      [
+        { transform: `translate(var(--tx), var(--ty)) rotate(var(--rz)) rotateY(${start}deg)` },
+        { transform: `translate(var(--tx), var(--ty)) rotate(var(--rz)) rotateY(${end}deg)` }
+      ],
+      { duration: 550, easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'both' }
+    );
+
+    anim.onfinish = () => {
+      ryDeg = end % 360;              // keep within 0..359
+      showingBack = !showingBack;     // we ended flipped
+      applyTransformVars(0,0,0,ryDeg);
+      spinning = false;
+    };
+    anim.oncancel = () => { spinning = false; };
+  }
+
+  // ---------- unified gestures (X + Y) ----------
   let dragging=false, startX=0, startY=0, curX=0, curY=0;
 
   const SWIPE_X = 90;           // horizontal change to count as left/right
-  const SWIPE_Y = 100;          // upward change to count as like
+  const SWIPE_Y = 100;          // upward change to count as next
   const ROTATE_FACTOR = 18;     // z-rotation on horizontal drag
   const TRANSLATE_X_LIMIT = 140;
   const TRANSLATE_Y_LIMIT = 120;
 
-  // tap/double-tap
+  // tap/double-tap detection (for call)
   let lastTapTime = 0, lastTapX = 0, lastTapY = 0;
   const DOUBLE_MS = 280, DOUBLE_DIST = 18;
 
@@ -191,40 +226,35 @@
     const cy = Math.max(-TRANSLATE_Y_LIMIT, Math.min(TRANSLATE_Y_LIMIT, dy));
     const rot = (cx/TRANSLATE_X_LIMIT)*ROTATE_FACTOR;
     els.card.style.transition='none';
-    els.card.style.transform = `translate(${cx}px, ${cy}px) rotate(${rot}deg) ${flipped?'rotateY(180deg)':''}`;
+    applyTransformVars(cx, cy, rot, ryDeg);
   }
 
   function resetDrag(){
     els.card.style.transition='transform .35s cubic-bezier(.22,.61,.36,1)';
-    els.card.style.transform = `${flipped?'rotateY(180deg)':'translate(0,0) rotate(0)'}`;
+    applyTransformVars(0,0,0,ryDeg);
   }
 
   function flingHorizontal(dir){
     els.card.style.transition='transform .22s ease-out';
-    els.card.style.transform = `translateX(${dir*420}px) rotate(${dir*30}deg)`;
+    // temporarily animate out without touching ryDeg
+    els.card.style.transform = `translate(${dir*420}px, 0px) rotate(${dir*30}deg) rotateY(${ryDeg}deg)`;
     setTimeout(()=>{ next(dir); els.card.style.transition=''; els.card.style.transform=''; }, 200);
   }
 
-  function likeAndFlingUp(){
-    // increment gems, show badge, fling up, then next
-    friends[i].gems += 1;
-    els.gems.textContent = friends[i].gems;
-
-    els.likeBadge.classList.add('show');
-    setTimeout(()=> els.likeBadge.classList.remove('show'), 400);
-
+  function flingUp(){
     els.card.style.transition='transform .25s ease-out';
-    els.card.style.transform = `translateY(-480px) rotate(-6deg)`;
+    els.card.style.transform = `translate(0px, -480px) rotate(-6deg) rotateY(${ryDeg}deg)`;
     setTimeout(()=>{ next(1); els.card.style.transition=''; els.card.style.transform=''; }, 220);
   }
 
   els.card.addEventListener('pointerdown',(e)=>{
+    if (spinning) return; // ignore during spin
     dragging=true; startX=e.clientX; startY=e.clientY; curX=startX; curY=startY;
     els.card.setPointerCapture(e.pointerId);
   });
 
   els.card.addEventListener('pointermove',(e)=>{
-    if(!dragging) return;
+    if(!dragging || spinning) return;
     curX=e.clientX; curY=e.clientY;
     setDrag(curX-startX, curY-startY);
   });
@@ -237,16 +267,16 @@
     const dx = curX - startX;
     const dy = curY - startY;
 
-    // upward like?
-    if (-dy > SWIPE_Y) { likeAndFlingUp(); return; }
+    // gestures (no like):
+    if (-dy > SWIPE_Y) { flingUp(); return; }                   // swipe up → next
+    if (Math.abs(dx) > SWIPE_X) { flingHorizontal(dx<0?-1:1); return; } // left/right → prev/next
 
-    // horizontal swipe?
-    if (Math.abs(dx) > SWIPE_X) { flingHorizontal(dx<0?-1:1); return; }
+    resetDrag(); // not a swipe → treat as tap/double
 
-    // otherwise snap back
-    resetDrag();
+    // if we moved a bit, don’t count as tap
+    const moveDist = Math.hypot(dx, dy);
+    if (moveDist > 8) return;
 
-    // tap / double-tap
     const now = performance.now();
     const dt = now - lastTapTime;
     const dist = Math.hypot(e.clientX-lastTapX, e.clientY-lastTapY);
@@ -257,26 +287,31 @@
       return;
     }
 
-    flip(!flipped);
+    // single tap → 360° spin and end on opposite face
+    spinAndReveal();
+
     lastTapTime = now; lastTapX = e.clientX; lastTapY = e.clientY;
   });
 
-  // native dblclick (desktop)
-  els.card.addEventListener('dblclick', (e)=>{
-    lastTapTime = 0; // cancel any pending
+  // native dblclick (desktop) → call
+  els.card.addEventListener('dblclick', ()=>{
+    lastTapTime = 0;
     callFriend();
   });
 
   // buttons
-  els.flipBack.addEventListener('click', ()=>flip(false));
+  els.flipBack.addEventListener('click', ()=>{
+    // simulate a tap spin back to front
+    spinAndReveal();
+  });
   els.callBtn.addEventListener('click', callFriend);
 
   // keyboard niceties
   window.addEventListener('keydown',(e)=>{
     if(e.key==='ArrowRight') next(1);
     if(e.key==='ArrowLeft') next(-1);
-    if(e.key===' ') { e.preventDefault(); flip(); }
-    if(e.key.toLowerCase()==='l') likeAndFlingUp(); // bonus: L to like
+    if(e.key===' ') { e.preventDefault(); spinAndReveal(); }
+    if(e.key.toLowerCase()==='u') flingUp(); // quick test
   });
 
   render(i);

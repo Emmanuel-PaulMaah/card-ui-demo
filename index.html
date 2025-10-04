@@ -32,7 +32,14 @@
 
   /* FRONT (full-bleed image) */
   .front{color:#fff;display:flex;flex-direction:column;justify-content:flex-end}
-  .bg{position:absolute;inset:0;z-index:-1;background:#111 center/cover no-repeat;transform:scale(1.02)}
+  .bg{
+    position:absolute; inset:0; z-index:-1;
+    background-color:#111;
+    background-repeat:no-repeat;
+    background-size:cover;
+    background-position:center center;      /* CHANGED: hard center */
+    transform:scale(1.02)
+  }
   .front::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.04) 20%,rgba(0,0,0,.45) 75%)}
   .header{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;justify-content:space-between;padding:14px 16px}
   .name{font-weight:700;font-size:clamp(16px,3.8vw,20px);padding:6px 10px;border-radius:10px;background:rgba(238,242,255,.9);color:#3730a3;backdrop-filter:blur(6px)}
@@ -43,6 +50,13 @@
   .back{background:#0c111b;color:#e5e7eb;transform:rotateY(180deg);padding:14px;gap:12px}
   .row{display:flex;justify-content:space-between;align-items:center;background:#111827;padding:12px 14px;border-radius:12px}
   .row+.row{margin-top:10px}
+  /* CHANGED: dedicated bio block for reliable rendering */
+  .bioBlock{
+    background:#111827; border-radius:12px; padding:14px;
+  }
+  .bioLabel{opacity:.7; font-size:13px; display:block; margin-bottom:6px;}
+  .bioText{font-size:15px; line-height:1.5; text-align:center; word-break:break-word; white-space:normal;}
+
   .btn{display:inline-block;padding:10px 14px;border-radius:10px;border:0;background:#22c55e;color:#fff;font-weight:700;cursor:pointer}
   .nav{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
   .nav button{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0b1320;color:#e5e7eb;cursor:pointer;font-weight:600}
@@ -72,7 +86,13 @@
       <!-- BACK -->
       <div class="side back faceFade">
         <div class="row"><span>username</span> <strong id="username">@handle</strong></div>
-        <div class="row"><span>bio</span> <span id="bio">—</span></div>
+
+        <!-- CHANGED: replace the old span#bio row with a block that always shows -->
+        <div class="bioBlock">
+          <span class="bioLabel">bio</span>
+          <div class="bioText" id="bio">—</div>
+        </div>
+
         <div class="row"><span>phone</span> <strong id="phone">—</strong></div>
         <div class="nav">
           <button id="flipBack">flip</button>
@@ -84,10 +104,7 @@
 </div>
 
 <script>
-  // ----- use your GitHub Pages images folder -----
-  // Put files in: ./images/
-  // Names: elon-musk.jpg, kendrick-lamar.jpg, emmanuel.jpg
-  // When updating images, bump ?v=1 → ?v=2 etc to bust cache.
+  // images live at ./images/
   const IMG_VER = 'v=1';
 
   const friends = [
@@ -97,7 +114,8 @@
       avatar: `images/elon-musk.webp?${IMG_VER}`,
       username: "@elonmusk",
       bio: "emperor kekius maximus, gorklon rust",
-      phone: ""
+      phone: "",
+      focusY: 45  // CHANGED: optional focal point (% from top); centers face better
     },
     {
       name: "kendrick lamar",
@@ -105,7 +123,8 @@
       avatar: `images/kendrick-lamar.webp?${IMG_VER}`,
       username: "@kendricklamar",
       bio: "oklama",
-      phone: ""
+      phone: "",
+      focusY: 40
     },
     {
       name: "emmanuel",
@@ -113,11 +132,11 @@
       avatar: `images/emmanuel-paulmaah.jpg?${IMG_VER}`,
       username: "@emmanuel",
       bio: "aspiring polymath",
-      phone: ""
+      phone: "",
+      focusY: 42
     },
   ];
 
-  // ----- elements -----
   const els = {
     card: document.getElementById('card'),
     bg: document.getElementById('bg'),
@@ -130,19 +149,16 @@
     callBtn: document.getElementById('callBtn'),
   };
 
-  // transform state
   let i = 0;
   let showingBack = false;
   let flipping = false;
   let ryDeg = 0;
 
-  // long press state
   let longPressTimer = null;
   let longPressed = false;
   const LONG_MS = 520;
-  const TAP_MOVE_CANCEL = 10; // px
+  const TAP_MOVE_CANCEL = 10;
 
-  // helpers
   const setVars = (tx=0,ty=0,rz=0,ry=ryDeg)=>{
     els.card.style.setProperty('--tx', tx+'px');
     els.card.style.setProperty('--ty', ty+'px');
@@ -154,9 +170,14 @@
     const f = friends[idx];
     els.name.textContent = f.name;
     els.gems.textContent = f.gems;
+
+    // CHANGED: force center and apply optional per-person focus
+    const focusY = (typeof f.focusY === 'number') ? f.focusY : 50;
     els.bg.style.backgroundImage = `url("${f.avatar}")`;
-    els.username.textContent = f.username;
-    els.bio.textContent = f.bio;
+    els.bg.style.backgroundPosition = `center ${focusY}%`;
+
+    els.username.textContent = f.username || '—';
+    els.bio.textContent = f.bio || '—';
     els.phone.textContent = f.phone || '—';
 
     // reset to front
@@ -176,15 +197,10 @@
     render(i);
   }
 
-  // preloader for smoother first flips/swipes
   function preloadImages(){
-    friends.forEach(f=>{
-      const img = new Image();
-      img.src = f.avatar;
-    });
+    friends.forEach(f=>{ const img = new Image(); img.src = f.avatar; });
   }
 
-  // ----- flip: 180°, quick -----
   function flipOnce(){
     if (flipping) return;
     flipping = true;
@@ -207,7 +223,7 @@
     anim.oncancel  = ()=>{ flipping = false; };
   }
 
-  // ----- gestures -----
+  // gestures
   let dragging=false, startX=0, startY=0, curX=0, curY=0;
   const SWIPE_X=90, SWIPE_Y=100, ROTATE_FACTOR=18, LIM_X=140, LIM_Y=120;
 
@@ -276,7 +292,7 @@
   els.flipBack.addEventListener('click', flipOnce);
   els.callBtn.addEventListener('click', callFriend);
 
-  // keyboard convenience
+  // keyboard
   window.addEventListener('keydown',e=>{
     if(e.key==='ArrowRight') next(1);
     if(e.key==='ArrowLeft') next(-1);

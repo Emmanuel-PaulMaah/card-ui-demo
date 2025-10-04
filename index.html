@@ -84,31 +84,36 @@
 </div>
 
 <script>
-  // ----- data (bios refreshed) -----
+  // ----- use your GitHub Pages images folder -----
+  // Put files in: ./images/
+  // Names: elon-musk.jpg, kendrick-lamar.jpg, emmanuel.jpg
+  // When updating images, bump ?v=1 → ?v=2 etc to bust cache.
+  const IMG_VER = 'v=1';
+
   const friends = [
     {
-      name:"john",
-      gems:12,
-      avatar:"https://i.pravatar.cc/640?img=12",
-      username:"@johnny",
-      bio:"pm at a fintech, obsessed with clean onboarding. weekends = cast-iron, trail runs, and debugging espresso shots.",
-      phone:"+15550101"
+      name: "elon musk",
+      gems: 99,
+      avatar: `images/elon-musk.webp?${IMG_VER}`,
+      username: "@elonmusk",
+      bio: "emperor kekius maximus, gorklon rust",
+      phone: ""
     },
     {
-      name:"maya",
-      gems:47,
-      avatar:"https://i.pravatar.cc/640?img=5",
-      username:"@maya",
-      bio:"product designer. dog mom. shipping tiny, lovable details since forever. currently sketching voice-first ui ideas.",
-      phone:"+15550102"
+      name: "kendrick lamar",
+      gems: 77,
+      avatar: `images/kendrick-lamar.webp?${IMG_VER}`,
+      username: "@kendricklamar",
+      bio: "oklama",
+      phone: ""
     },
     {
-      name:"dev",
-      gems:3,
-      avatar:"https://i.pravatar.cc/640?img=33",
-      username:"@dev",
-      bio:"full-stack tinkerer. 5k before sunrise, books after midnight. building small tools that accidentally get big.",
-      phone:"+15550103"
+      name: "emmanuel",
+      gems: 12,
+      avatar: `images/emmanuel-paulmaah.jpg?${IMG_VER}`,
+      username: "@emmanuel",
+      bio: "aspiring polymath",
+      phone: ""
     },
   ];
 
@@ -128,7 +133,7 @@
   // transform state
   let i = 0;
   let showingBack = false;
-  let flipping = false;          // lock during flip
+  let flipping = false;
   let ryDeg = 0;
 
   // long press state
@@ -152,7 +157,7 @@
     els.bg.style.backgroundImage = `url("${f.avatar}")`;
     els.username.textContent = f.username;
     els.bio.textContent = f.bio;
-    els.phone.textContent = f.phone;
+    els.phone.textContent = f.phone || '—';
 
     // reset to front
     showingBack = false; ryDeg = 0;
@@ -171,7 +176,15 @@
     render(i);
   }
 
-  // ----- flip: 180°, quick, cross-fade, dim when back -----
+  // preloader for smoother first flips/swipes
+  function preloadImages(){
+    friends.forEach(f=>{
+      const img = new Image();
+      img.src = f.avatar;
+    });
+  }
+
+  // ----- flip: 180°, quick -----
   function flipOnce(){
     if (flipping) return;
     flipping = true;
@@ -220,17 +233,15 @@
     setTimeout(()=>{ next(1); els.card.style.transition=''; els.card.style.transform=''; }, 180);
   }
 
-  // pointer events with long-press detection
+  // pointer + long-press for call
   els.card.addEventListener('pointerdown', e=>{
     if (flipping) return;
     dragging=true; startX=e.clientX; startY=e.clientY; curX=startX; curY=startY;
     longPressed = false;
 
-    // start long press timer (cancel if we move too much or release)
     clearTimeout(longPressTimer);
     longPressTimer = setTimeout(()=>{
       longPressed = true;
-      // give a tiny haptic-ish visual: quick dim pulse
       els.card.classList.add('dim');
       setTimeout(()=>{ if(!showingBack) els.card.classList.remove('dim'); }, 120);
       callFriend();
@@ -243,38 +254,29 @@
     if(!dragging || flipping) return;
     curX=e.clientX; curY=e.clientY;
     const moved = Math.hypot(curX-startX, curY-startY);
-    if (moved > TAP_MOVE_CANCEL) {
-      // cancel long press once user really moves
-      clearTimeout(longPressTimer);
-    }
+    if (moved > 10) clearTimeout(longPressTimer);
     setDrag(curX-startX, curY-startY);
   });
 
   els.card.addEventListener('pointerup', e=>{
-    if(!dragging) return;
-    dragging=false;
-    els.card.releasePointerCapture(e.pointerId);
+    if(!dragging) return; dragging=false; els.card.releasePointerCapture(e.pointerId);
     clearTimeout(longPressTimer);
 
     const dx=curX-startX, dy=curY-startY;
 
-    // if long-press already fired, do nothing else
     if (longPressed) { resetDrag(); return; }
-
-    // swipes:
     if (-dy>SWIPE_Y){ flingUp(); return; }
     if (Math.abs(dx)>SWIPE_X){ flingHorizontal(dx<0?-1:1); return; }
 
-    // tap → flip
     resetDrag();
-    if (Math.hypot(dx,dy) <= TAP_MOVE_CANCEL) flipOnce();
+    if (Math.hypot(dx,dy) <= 10) flipOnce(); // tap
   });
 
-  // buttons (still available on back)
+  // buttons on back
   els.flipBack.addEventListener('click', flipOnce);
   els.callBtn.addEventListener('click', callFriend);
 
-  // keyboard (unchanged)
+  // keyboard convenience
   window.addEventListener('keydown',e=>{
     if(e.key==='ArrowRight') next(1);
     if(e.key==='ArrowLeft') next(-1);
@@ -282,6 +284,7 @@
     if(e.key.toLowerCase()==='u') flingUp();
   });
 
+  preloadImages();
   render(i);
 </script>
 </body>

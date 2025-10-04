@@ -3,51 +3,107 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Friend Cards – unified gestures</title>
+<title>Friend Cards – gestures + responsive + bg image</title>
 <style>
-  :root { --w:320px; --h:460px; --r:16px; --shadow:0 10px 30px rgba(0,0,0,.15); }
+  :root {
+    /* responsive card sizing */
+    --card-w: clamp(280px, 92vw, 420px);
+    --radius: 16px;
+    --shadow: 0 10px 30px rgba(0,0,0,.15);
+  }
   *{box-sizing:border-box}
-  body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#f6f7fb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-  .wrap{width:min(92vw,360px)}
+  body{
+    margin:0;min-height:100dvh;display:grid;place-items:center;background:#f6f7fb;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif
+  }
+  .wrap{width:min(96vw,560px);padding:10px}
   .status{text-align:center;margin-bottom:12px;font-size:14px;color:#555}
-  .stage{width:var(--w);height:var(--h);margin:auto;perspective:1200px;position:relative}
+  .stage{
+    width:var(--card-w);
+    aspect-ratio: 320 / 460;           /* preserves original proportions, scales fluidly */
+    margin:auto;perspective:1200px;position:relative
+  }
+
   .card{
-    position:absolute;inset:0;border-radius:var(--r);background:#fff;box-shadow:var(--shadow);
+    position:absolute;inset:0;border-radius:var(--radius);box-shadow:var(--shadow);
     transform-style:preserve-3d;transition:transform .5s cubic-bezier(.22,.61,.36,1);
-    touch-action: pan-y; /* allow horizontal drag */
+    touch-action:none;                  /* we handle both axes for swipes */
+    background:#000; overflow:hidden; isolation:isolate;
   }
   .card.flipped{transform:rotateY(180deg)}
-  .side{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
-  .front{background:#fff}
-  .back{background:#111827;color:#e5e7eb;transform:rotateY(180deg);padding:18px;gap:12px}
-  .header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 0}
-  .name{font-weight:650;font-size:18px;padding:6px 10px;border-radius:10px;background:#eef2ff;color:#3730a3}
-  .gem{display:inline-flex;align-items:center;gap:6px;background:#ecfeff;color:#155e75;padding:6px 10px;border-radius:12px;font-weight:600;font-size:14px}
+
+  .side{
+    position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+    border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column
+  }
+
+  /* FRONT: full-bleed image bg with gradient overlays */
+  .front{
+    color:#fff; display:flex; flex-direction:column; justify-content:flex-end;
+  }
+  .bg{
+    position:absolute; inset:0; z-index:-1;
+    background:#111 center/cover no-repeat;
+    transform:scale(1.02); /* small overscan to hide edge gaps during rotate/drag */
+    filter:saturate(1.02);
+  }
+  .front::before{
+    content:""; position:absolute; inset:0; z-index:0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.05) 20%, rgba(0,0,0,0.5) 75%);
+  }
+  .header{
+    position:absolute; left:0; right:0; top:0; display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px;
+  }
+  .name{font-weight:700;font-size:clamp(16px, 3.8vw, 20px);padding:6px 10px;border-radius:10px;background:rgba(238,242,255,.85);color:#3730a3;backdrop-filter:blur(6px)}
+  .gem{display:inline-flex;align-items:center;gap:6px;background:rgba(236,254,255,.9);color:#155e75;padding:6px 10px;border-radius:12px;font-weight:700;font-size:clamp(13px, 3.5vw, 15px)}
   .gem::before{content:"♦"}
-  .avatar{width:180px;height:180px;border-radius:999px;background:#e5e7eb;margin:24px auto 10px;display:grid;place-items:center;overflow:hidden}
-  .avatar img{width:100%;height:100%;object-fit:cover}
-  .hint{margin-top:auto;font-size:12px;color:#6b7280;padding:12px 16px 16px;text-align:center}
+
+  .hint{
+    margin-top:auto;font-size:12px;color:#e5e7eb;opacity:.9;padding:10px 12px 12px;text-align:center
+  }
+
+  /* BACK */
+  .back{
+    background:#111827;color:#e5e7eb;transform:rotateY(180deg);padding:14px;gap:12px
+  }
   .row{display:flex;justify-content:space-between;align-items:center;background:#1f2937;padding:12px 14px;border-radius:12px}
   .row+.row{margin-top:10px}
   .btn{display:inline-block;padding:10px 14px;border-radius:10px;border:0;background:#22c55e;color:#fff;font-weight:700;cursor:pointer}
   .nav{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
-  .nav button{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-weight:600}
+  .nav button{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#111827;color:#e5e7eb;cursor:pointer;font-weight:600}
+  .nav button.btn{border:0;background:#22c55e;color:#fff}
+
   .index{text-align:center;margin-top:10px;color:#6b7280;font-size:13px}
+
+  /* like (swipe up) badge */
+  .likeBadge{
+    position:absolute; left:50%; top:14%;
+    transform:translate(-50%,-50%) scale(.9);
+    background:rgba(34,197,94,.95); color:#fff; padding:8px 12px; border-radius:999px; font-weight:800;
+    letter-spacing:.3px; opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;
+  }
+  .likeBadge.show{opacity:1; transform:translate(-50%,-50%) scale(1)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="status">tap/click = flip · double = call · drag = swipe</div>
+  <div class="status">tap/click = flip · double = call · drag left/right = swipe · drag up = like</div>
+
   <div class="stage">
     <div class="card" id="card">
+      <!-- FRONT -->
       <div class="side front">
+        <div class="bg" id="bg"></div>
         <div class="header">
           <div class="name" id="name">name</div>
           <div class="gem" id="gems">0</div>
         </div>
-        <div class="avatar"><img id="avatar" alt="profile"></div>
-        <div class="hint">tap/click once to flip · double to call · drag to turn</div>
+        <div class="likeBadge" id="likeBadge">liked +1</div>
+        <div class="hint">tap once to flip · double to call · swipe left/right to browse · swipe up to like</div>
       </div>
+
+      <!-- BACK -->
       <div class="side back">
         <div class="row"><span>username</span> <strong id="username">@handle</strong></div>
         <div class="row"><span>bio</span> <span id="bio">—</span></div>
@@ -59,29 +115,31 @@
       </div>
     </div>
   </div>
+
   <div class="index" id="index"></div>
 </div>
 
 <script>
   // ---------- demo data ----------
   const friends = [
-    { name:"john", gems:12, avatar:"https://i.pravatar.cc/300?img=12", username:"@johnny", bio:"product nerd. weekend cook.", phone:"+15550101" },
-    { name:"maya", gems:47, avatar:"https://i.pravatar.cc/300?img=5",  username:"@maya",   bio:"design + dogs.",           phone:"+15550102" },
-    { name:"dev",  gems:3,  avatar:"https://i.pravatar.cc/300?img=33", username:"@dev",    bio:"runner. reads a lot.",     phone:"+15550103" },
+    { name:"john", gems:12, avatar:"https://i.pravatar.cc/640?img=12", username:"@johnny", bio:"product nerd. weekend cook.", phone:"+15550101" },
+    { name:"maya", gems:47, avatar:"https://i.pravatar.cc/640?img=5",  username:"@maya",   bio:"design + dogs.",           phone:"+15550102" },
+    { name:"dev",  gems:3,  avatar:"https://i.pravatar.cc/640?img=33", username:"@dev",    bio:"runner. reads a lot.",     phone:"+15550103" },
   ];
 
   // ---------- elements ----------
   const els = {
     card: document.getElementById('card'),
+    bg: document.getElementById('bg'),
     name: document.getElementById('name'),
     gems: document.getElementById('gems'),
-    avatar: document.getElementById('avatar'),
     username: document.getElementById('username'),
     bio: document.getElementById('bio'),
     phone: document.getElementById('phone'),
     flipBack: document.getElementById('flipBack'),
     callBtn: document.getElementById('callBtn'),
     index: document.getElementById('index'),
+    likeBadge: document.getElementById('likeBadge'),
   };
 
   let i = 0, flipped = false;
@@ -90,7 +148,7 @@
     const f = friends[idx];
     els.name.textContent = f.name;
     els.gems.textContent = f.gems;
-    els.avatar.src = f.avatar;
+    els.bg.style.backgroundImage = `url("${f.avatar}")`;
     els.username.textContent = f.username;
     els.bio.textContent = f.bio;
     els.phone.textContent = f.phone;
@@ -107,7 +165,6 @@
     const phone = friends[i]?.phone;
     if (!phone) { alert("no phone on file."); return; }
     const num = phone.replace(/\s+/g,'');
-    // still works on desktop (will hand off to OS)
     window.location.href = `tel:${num}`;
   }
 
@@ -116,72 +173,95 @@
     render(i);
   }
 
-  // ---------- unified gestures via Pointer Events ----------
-  // double-tap detection that doesn't delay single-tap flip
+  // ---------- unified gestures (now X + Y) ----------
+  let dragging=false, startX=0, startY=0, curX=0, curY=0;
+
+  const SWIPE_X = 90;           // horizontal change to count as left/right
+  const SWIPE_Y = 100;          // upward change to count as like
+  const ROTATE_FACTOR = 18;     // z-rotation on horizontal drag
+  const TRANSLATE_X_LIMIT = 140;
+  const TRANSLATE_Y_LIMIT = 120;
+
+  // tap/double-tap
   let lastTapTime = 0, lastTapX = 0, lastTapY = 0;
   const DOUBLE_MS = 280, DOUBLE_DIST = 18;
 
-  // interactive swipe
-  let dragging=false, startX=0, curX=0;
-  const SWIPE_THRESHOLD = 90, ROTATE_FACTOR = 18, TRANSLATE_LIMIT = 140;
-
-  function setDrag(dx){
-    const clamped = Math.max(-TRANSLATE_LIMIT, Math.min(TRANSLATE_LIMIT, dx));
-    const rot = (clamped/TRANSLATE_LIMIT)*ROTATE_FACTOR;
+  function setDrag(dx, dy){
+    const cx = Math.max(-TRANSLATE_X_LIMIT, Math.min(TRANSLATE_X_LIMIT, dx));
+    const cy = Math.max(-TRANSLATE_Y_LIMIT, Math.min(TRANSLATE_Y_LIMIT, dy));
+    const rot = (cx/TRANSLATE_X_LIMIT)*ROTATE_FACTOR;
     els.card.style.transition='none';
-    els.card.style.transform = `translateX(${clamped}px) rotate(${rot}deg) ${flipped?'rotateY(180deg)':''}`;
+    els.card.style.transform = `translate(${cx}px, ${cy}px) rotate(${rot}deg) ${flipped?'rotateY(180deg)':''}`;
   }
+
   function resetDrag(){
     els.card.style.transition='transform .35s cubic-bezier(.22,.61,.36,1)';
-    els.card.style.transform = `${flipped?'rotateY(180deg)':'translateX(0) rotate(0)'}`;
+    els.card.style.transform = `${flipped?'rotateY(180deg)':'translate(0,0) rotate(0)'}`;
   }
-  function fling(dir){
+
+  function flingHorizontal(dir){
     els.card.style.transition='transform .22s ease-out';
     els.card.style.transform = `translateX(${dir*420}px) rotate(${dir*30}deg)`;
     setTimeout(()=>{ next(dir); els.card.style.transition=''; els.card.style.transform=''; }, 200);
   }
 
+  function likeAndFlingUp(){
+    // increment gems, show badge, fling up, then next
+    friends[i].gems += 1;
+    els.gems.textContent = friends[i].gems;
+
+    els.likeBadge.classList.add('show');
+    setTimeout(()=> els.likeBadge.classList.remove('show'), 400);
+
+    els.card.style.transition='transform .25s ease-out';
+    els.card.style.transform = `translateY(-480px) rotate(-6deg)`;
+    setTimeout(()=>{ next(1); els.card.style.transition=''; els.card.style.transform=''; }, 220);
+  }
+
   els.card.addEventListener('pointerdown',(e)=>{
-    dragging=true; startX=e.clientX; curX=startX;
+    dragging=true; startX=e.clientX; startY=e.clientY; curX=startX; curY=startY;
     els.card.setPointerCapture(e.pointerId);
   });
 
   els.card.addEventListener('pointermove',(e)=>{
     if(!dragging) return;
-    curX=e.clientX;
-    setDrag(curX-startX);
+    curX=e.clientX; curY=e.clientY;
+    setDrag(curX-startX, curY-startY);
   });
 
   els.card.addEventListener('pointerup',(e)=>{
     if(!dragging) return;
     dragging=false;
     els.card.releasePointerCapture(e.pointerId);
-    const dx = curX-startX;
 
-    // swipe?
-    if (Math.abs(dx) > SWIPE_THRESHOLD) { fling(dx<0?-1:1); return; }
+    const dx = curX - startX;
+    const dy = curY - startY;
+
+    // upward like?
+    if (-dy > SWIPE_Y) { likeAndFlingUp(); return; }
+
+    // horizontal swipe?
+    if (Math.abs(dx) > SWIPE_X) { flingHorizontal(dx<0?-1:1); return; }
+
+    // otherwise snap back
     resetDrag();
 
-    // treat as tap (movement small)
+    // tap / double-tap
     const now = performance.now();
     const dt = now - lastTapTime;
     const dist = Math.hypot(e.clientX-lastTapX, e.clientY-lastTapY);
 
     if (dt < DOUBLE_MS && dist < DOUBLE_DIST) {
-      // double → call. prevent extra flip from this second tap
       lastTapTime = 0;
       callFriend();
       return;
     }
 
-    // single tap → toggle flip immediately
     flip(!flipped);
-
-    // store tap for possible next double
     lastTapTime = now; lastTapX = e.clientX; lastTapY = e.clientY;
   });
 
-  // desktop dblclick (extra safety so OS double-click also works)
+  // native dblclick (desktop)
   els.card.addEventListener('dblclick', (e)=>{
     lastTapTime = 0; // cancel any pending
     callFriend();
@@ -195,7 +275,8 @@
   window.addEventListener('keydown',(e)=>{
     if(e.key==='ArrowRight') next(1);
     if(e.key==='ArrowLeft') next(-1);
-    if(e.key===' ') flip();
+    if(e.key===' ') { e.preventDefault(); flip(); }
+    if(e.key.toLowerCase()==='l') likeAndFlingUp(); // bonus: L to like
   });
 
   render(i);

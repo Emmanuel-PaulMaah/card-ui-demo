@@ -3,20 +3,18 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Friend Cards – tight flip</title>
+<title>Friend Cards</title>
 <style>
   :root{
     --card-w: clamp(280px, 92vw, 420px);
     --radius: 16px;
     --shadow: 0 10px 30px rgba(0,0,0,.15);
 
-    /* live transform vars */
     --tx: 0px; --ty: 0px; --rz: 0deg; --ry: 0deg;
   }
   *{box-sizing:border-box}
   body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#f6f7fb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
   .wrap{width:min(96vw,560px);padding:10px}
-  .status{text-align:center;margin-bottom:12px;font-size:14px;color:#555}
 
   .stage{width:var(--card-w);aspect-ratio:320/460;margin:auto;perspective:1200px;position:relative}
 
@@ -24,15 +22,12 @@
     position:absolute;inset:0;border-radius:var(--radius);box-shadow:var(--shadow);
     transform-style:preserve-3d;
     transform: translate(var(--tx), var(--ty)) rotate(var(--rz)) rotateY(var(--ry));
-    transition: transform .28s cubic-bezier(.25,.7,.3,1), filter .28s ease;
-    touch-action:none;background:#000;overflow:hidden;isolation:isolate;will-change:transform,filter;
+    transition: transform .28s cubic-bezier(.25,.7,.3,1);
+    touch-action:none;background:#000;overflow:hidden;isolation:isolate;will-change:transform;
   }
-  /* subtle dimmer when showing back */
   .card.dim::after{
-    content:"";position:absolute;inset:0;pointer-events:none;
-    background:rgba(0,0,0,.28);
+    content:"";position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,.28);
   }
-
   .side{position:absolute;inset:0;border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 
   /* FRONT (full-bleed image) */
@@ -43,9 +38,8 @@
   .name{font-weight:700;font-size:clamp(16px,3.8vw,20px);padding:6px 10px;border-radius:10px;background:rgba(238,242,255,.9);color:#3730a3;backdrop-filter:blur(6px)}
   .gem{display:inline-flex;align-items:center;gap:6px;background:rgba(236,254,255,.92);color:#155e75;padding:6px 10px;border-radius:12px;font-weight:700;font-size:clamp(13px,3.5vw,15px)}
   .gem::before{content:"♦"}
-  .hint{margin-top:auto;font-size:12px;color:#e5e7eb;opacity:.95;padding:10px 12px 12px;text-align:center}
 
-  /* BACK (info)—kept readable, less transparent overall */
+  /* BACK (info) */
   .back{background:#0c111b;color:#e5e7eb;transform:rotateY(180deg);padding:14px;gap:12px}
   .row{display:flex;justify-content:space-between;align-items:center;background:#111827;padding:12px 14px;border-radius:12px}
   .row+.row{margin-top:10px}
@@ -54,9 +48,7 @@
   .nav button{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0b1320;color:#e5e7eb;cursor:pointer;font-weight:600}
   .nav button.btn{border:0;background:#22c55e;color:#fff}
 
-  .index{text-align:center;margin-top:10px;color:#6b7280;font-size:13px}
-
-  /* cross-fade of faces (prevents “jitter” feel) */
+  /* cross-fade of faces */
   .faceFade{transition:opacity .2s ease}
   .front.faceFade{opacity:1}
   .back.faceFade{opacity:0}
@@ -66,8 +58,6 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="status">tap = quick flip to other side (dimmed) · swipe left/right = prev/next · swipe up = next · double = call</div>
-
   <div class="stage">
     <div class="card" id="card">
       <!-- FRONT -->
@@ -77,7 +67,6 @@
           <div class="name" id="name">name</div>
           <div class="gem" id="gems">0</div>
         </div>
-        <div class="hint">tap to flip & reveal bio · swipe left/right to browse · swipe up to advance</div>
       </div>
 
       <!-- BACK -->
@@ -86,22 +75,41 @@
         <div class="row"><span>bio</span> <span id="bio">—</span></div>
         <div class="row"><span>phone</span> <strong id="phone">—</strong></div>
         <div class="nav">
-          <button id="flipBack">flip to front</button>
+          <button id="flipBack">flip</button>
           <button id="callBtn" class="btn">call</button>
         </div>
       </div>
     </div>
   </div>
-
-  <div class="index" id="index"></div>
 </div>
 
 <script>
-  // ----- data -----
+  // ----- data (bios refreshed) -----
   const friends = [
-    { name:"john", gems:12, avatar:"https://i.pravatar.cc/640?img=12", username:"@johnny", bio:"product nerd. weekend cook.", phone:"+15550101" },
-    { name:"maya", gems:47, avatar:"https://i.pravatar.cc/640?img=5",  username:"@maya",   bio:"design + dogs.",           phone:"+15550102" },
-    { name:"dev",  gems:3,  avatar:"https://i.pravatar.cc/640?img=33", username:"@dev",    bio:"runner. reads a lot.",     phone:"+15550103" },
+    {
+      name:"john",
+      gems:12,
+      avatar:"https://i.pravatar.cc/640?img=12",
+      username:"@johnny",
+      bio:"pm at a fintech, obsessed with clean onboarding. weekends = cast-iron, trail runs, and debugging espresso shots.",
+      phone:"+15550101"
+    },
+    {
+      name:"maya",
+      gems:47,
+      avatar:"https://i.pravatar.cc/640?img=5",
+      username:"@maya",
+      bio:"product designer. dog mom. shipping tiny, lovable details since forever. currently sketching voice-first ui ideas.",
+      phone:"+15550102"
+    },
+    {
+      name:"dev",
+      gems:3,
+      avatar:"https://i.pravatar.cc/640?img=33",
+      username:"@dev",
+      bio:"full-stack tinkerer. 5k before sunrise, books after midnight. building small tools that accidentally get big.",
+      phone:"+15550103"
+    },
   ];
 
   // ----- elements -----
@@ -115,14 +123,19 @@
     phone: document.getElementById('phone'),
     flipBack: document.getElementById('flipBack'),
     callBtn: document.getElementById('callBtn'),
-    index: document.getElementById('index'),
   };
 
   // transform state
   let i = 0;
   let showingBack = false;
-  let spinning = false;          // lock during flip
+  let flipping = false;          // lock during flip
   let ryDeg = 0;
+
+  // long press state
+  let longPressTimer = null;
+  let longPressed = false;
+  const LONG_MS = 520;
+  const TAP_MOVE_CANCEL = 10; // px
 
   // helpers
   const setVars = (tx=0,ty=0,rz=0,ry=ryDeg)=>{
@@ -140,7 +153,7 @@
     els.username.textContent = f.username;
     els.bio.textContent = f.bio;
     els.phone.textContent = f.phone;
-    els.index.textContent = `${idx+1} / ${friends.length}`;
+
     // reset to front
     showingBack = false; ryDeg = 0;
     setVars(0,0,0,ryDeg);
@@ -158,38 +171,32 @@
     render(i);
   }
 
-  // ----- tap flip: 180° only, fast, with face crossfade + dimmer -----
-  function quickFlip(){
-    if (spinning) return;
-    spinning = true;
+  // ----- flip: 180°, quick, cross-fade, dim when back -----
+  function flipOnce(){
+    if (flipping) return;
+    flipping = true;
 
     const start = ryDeg;
-    const end = ryDeg + 180; // single turn
+    const end = ryDeg + 180;
 
-    // face classes for cross-fade + dimmer
     showingBack = !showingBack;
     els.card.classList.toggle('backface', showingBack);
     els.card.classList.toggle('dim', showingBack);
 
-    // WAAPI: only touch rotateY; CSS vars handle the rest
     const anim = els.card.animate(
       [
         { transform: `translate(var(--tx), var(--ty)) rotate(var(--rz)) rotateY(${start}deg)` },
         { transform: `translate(var(--tx), var(--ty)) rotate(var(--rz)) rotateY(${end}deg)` }
       ],
-      { duration: 260, easing: 'cubic-bezier(.25,.7,.3,1)', fill:'both' }
+      { duration: 240, easing: 'cubic-bezier(.25,.7,.3,1)', fill:'both' }
     );
-    anim.onfinish = ()=>{ ryDeg = end % 360; setVars(0,0,0,ryDeg); spinning = false; };
-    anim.oncancel  = ()=>{ spinning = false; };
+    anim.onfinish = ()=>{ ryDeg = end % 360; setVars(0,0,0,ryDeg); flipping = false; };
+    anim.oncancel  = ()=>{ flipping = false; };
   }
 
   // ----- gestures -----
   let dragging=false, startX=0, startY=0, curX=0, curY=0;
   const SWIPE_X=90, SWIPE_Y=100, ROTATE_FACTOR=18, LIM_X=140, LIM_Y=120;
-
-  // tap/double for call
-  let lastTapTime=0,lastTapX=0,lastTapY=0;
-  const DOUBLE_MS=280, DOUBLE_DIST=18;
 
   function setDrag(dx,dy){
     const cx = Math.max(-LIM_X, Math.min(LIM_X, dx));
@@ -199,7 +206,7 @@
     setVars(cx,cy,rz,ryDeg);
   }
   function resetDrag(){
-    els.card.style.transition='transform .25s cubic-bezier(.25,.7,.3,1)';
+    els.card.style.transition='transform .22s cubic-bezier(.25,.7,.3,1)';
     setVars(0,0,0,ryDeg);
   }
   function flingHorizontal(dir){
@@ -208,51 +215,70 @@
     setTimeout(()=>{ next(dir); els.card.style.transition=''; els.card.style.transform=''; }, 180);
   }
   function flingUp(){
-    els.card.style.transition='transform .22s ease-out';
+    els.card.style.transition='transform .2s ease-out';
     els.card.style.transform = `translate(0,-480px) rotate(-6deg) rotateY(${ryDeg}deg)`;
-    setTimeout(()=>{ next(1); els.card.style.transition=''; els.card.style.transform=''; }, 200);
+    setTimeout(()=>{ next(1); els.card.style.transition=''; els.card.style.transform=''; }, 180);
   }
 
-  els.card.addEventListener('pointerdown',e=>{
-    if (spinning) return;
+  // pointer events with long-press detection
+  els.card.addEventListener('pointerdown', e=>{
+    if (flipping) return;
     dragging=true; startX=e.clientX; startY=e.clientY; curX=startX; curY=startY;
+    longPressed = false;
+
+    // start long press timer (cancel if we move too much or release)
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(()=>{
+      longPressed = true;
+      // give a tiny haptic-ish visual: quick dim pulse
+      els.card.classList.add('dim');
+      setTimeout(()=>{ if(!showingBack) els.card.classList.remove('dim'); }, 120);
+      callFriend();
+    }, LONG_MS);
+
     els.card.setPointerCapture(e.pointerId);
   });
-  els.card.addEventListener('pointermove',e=>{
-    if(!dragging || spinning) return;
-    curX=e.clientX; curY=e.clientY; setDrag(curX-startX, curY-startY);
+
+  els.card.addEventListener('pointermove', e=>{
+    if(!dragging || flipping) return;
+    curX=e.clientX; curY=e.clientY;
+    const moved = Math.hypot(curX-startX, curY-startY);
+    if (moved > TAP_MOVE_CANCEL) {
+      // cancel long press once user really moves
+      clearTimeout(longPressTimer);
+    }
+    setDrag(curX-startX, curY-startY);
   });
-  els.card.addEventListener('pointerup',e=>{
-    if(!dragging) return; dragging=false; els.card.releasePointerCapture(e.pointerId);
+
+  els.card.addEventListener('pointerup', e=>{
+    if(!dragging) return;
+    dragging=false;
+    els.card.releasePointerCapture(e.pointerId);
+    clearTimeout(longPressTimer);
+
     const dx=curX-startX, dy=curY-startY;
 
+    // if long-press already fired, do nothing else
+    if (longPressed) { resetDrag(); return; }
+
+    // swipes:
     if (-dy>SWIPE_Y){ flingUp(); return; }
     if (Math.abs(dx)>SWIPE_X){ flingHorizontal(dx<0?-1:1); return; }
 
+    // tap → flip
     resetDrag();
-
-    // treat as tap unless moved
-    if (Math.hypot(dx,dy)>8) return;
-
-    const now=performance.now(), dt=now-lastTapTime, dist=Math.hypot(e.clientX-lastTapX,e.clientY-lastTapY);
-    if (dt<DOUBLE_MS && dist<DOUBLE_DIST){ lastTapTime=0; callFriend(); return; }
-
-    quickFlip(); // single 180°
-    lastTapTime=now; lastTapX=e.clientX; lastTapY=e.clientY;
+    if (Math.hypot(dx,dy) <= TAP_MOVE_CANCEL) flipOnce();
   });
 
-  // desktop dblclick
-  els.card.addEventListener('dblclick',()=>{ lastTapTime=0; callFriend(); });
-
-  // buttons
-  els.flipBack.addEventListener('click', quickFlip);
+  // buttons (still available on back)
+  els.flipBack.addEventListener('click', flipOnce);
   els.callBtn.addEventListener('click', callFriend);
 
-  // keyboard
+  // keyboard (unchanged)
   window.addEventListener('keydown',e=>{
     if(e.key==='ArrowRight') next(1);
     if(e.key==='ArrowLeft') next(-1);
-    if(e.key===' ') { e.preventDefault(); quickFlip(); }
+    if(e.key===' ') { e.preventDefault(); flipOnce(); }
     if(e.key.toLowerCase()==='u') flingUp();
   });
 

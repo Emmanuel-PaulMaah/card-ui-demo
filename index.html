@@ -1,98 +1,76 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Friend Cards – Vanilla JS Demo</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Friend Cards – unified gestures</title>
 <style>
-  :root { --w: 320px; --h: 460px; --radius: 16px; --shadow: 0 10px 30px rgba(0,0,0,.15); }
-  * { box-sizing: border-box; }
-  body {
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    margin: 0; display: grid; place-items: center; min-height: 100dvh; background: #f6f7fb;
+  :root { --w:320px; --h:460px; --r:16px; --shadow:0 10px 30px rgba(0,0,0,.15); }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#f6f7fb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{width:min(92vw,360px)}
+  .status{text-align:center;margin-bottom:12px;font-size:14px;color:#555}
+  .stage{width:var(--w);height:var(--h);margin:auto;perspective:1200px;position:relative}
+  .card{
+    position:absolute;inset:0;border-radius:var(--r);background:#fff;box-shadow:var(--shadow);
+    transform-style:preserve-3d;transition:transform .5s cubic-bezier(.22,.61,.36,1);
+    touch-action: pan-y; /* allow horizontal drag */
   }
-  .wrap { width: min(92vw, 360px); }
-  .status { text-align:center; margin-bottom: 12px; font-size: 14px; color:#555; }
-  .carousel { position: relative; width: var(--w); height: var(--h); margin-inline:auto; perspective: 1200px; }
-  .card {
-    position:absolute; inset:0; border-radius: var(--radius); box-shadow: var(--shadow);
-    transform-style: preserve-3d; transition: transform .6s ease;
-    background: #fff;
-  }
-  .card.flipped { transform: rotateY(180deg); }
-  .side {
-    position:absolute; inset:0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
-    border-radius: var(--radius); overflow: hidden;
-    display:flex; flex-direction:column;
-  }
-  .front { background: white; }
-  .back  { background: #111827; color: #e5e7eb; transform: rotateY(180deg); padding: 18px; gap: 12px; }
-  .header {
-    display:flex; align-items:center; justify-content:space-between; padding: 14px 16px 0 16px;
-  }
-  .name { font-weight: 650; font-size: 18px; padding: 6px 10px; border-radius: 10px; background:#eef2ff; color:#3730a3; }
-  .gem {
-    display:inline-flex; align-items:center; gap:6px; background:#ecfeff; color:#155e75; padding:6px 10px; border-radius:12px; font-weight:600; font-size:14px;
-  }
-  .gem::before { content: "♦"; }
-  .avatar {
-    width: 180px; height: 180px; border-radius: 999px; background: #e5e7eb; margin: 24px auto 10px;
-    display:grid; place-items:center; overflow:hidden;
-  }
-  .avatar img { width:100%; height:100%; object-fit:cover; }
-  .hint {
-    margin-top:auto; font-size: 12px; color:#6b7280; padding: 12px 16px 16px; text-align:center;
-  }
-  /* back content */
-  .row { display:flex; justify-content:space-between; align-items:center; background:#1f2937; padding:12px 14px; border-radius:12px; }
-  .row + .row { margin-top:10px; }
-  .btn {
-    display:inline-block; padding:10px 14px; border-radius:10px; border:0; background:#22c55e; color:white; font-weight:700; cursor:pointer;
-  }
-  .nav {
-    display:flex; justify-content:space-between; gap:8px; margin-top: 14px;
-  }
-  .nav button {
-    flex:1; padding:10px 12px; border-radius:10px; border:1px solid #e5e7eb; background:white; cursor:pointer; font-weight:600;
-  }
-  .index { text-align:center; margin-top:10px; color:#6b7280; font-size:13px; }
+  .card.flipped{transform:rotateY(180deg)}
+  .side{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
+  .front{background:#fff}
+  .back{background:#111827;color:#e5e7eb;transform:rotateY(180deg);padding:18px;gap:12px}
+  .header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 0}
+  .name{font-weight:650;font-size:18px;padding:6px 10px;border-radius:10px;background:#eef2ff;color:#3730a3}
+  .gem{display:inline-flex;align-items:center;gap:6px;background:#ecfeff;color:#155e75;padding:6px 10px;border-radius:12px;font-weight:600;font-size:14px}
+  .gem::before{content:"♦"}
+  .avatar{width:180px;height:180px;border-radius:999px;background:#e5e7eb;margin:24px auto 10px;display:grid;place-items:center;overflow:hidden}
+  .avatar img{width:100%;height:100%;object-fit:cover}
+  .hint{margin-top:auto;font-size:12px;color:#6b7280;padding:12px 16px 16px;text-align:center}
+  .row{display:flex;justify-content:space-between;align-items:center;background:#1f2937;padding:12px 14px;border-radius:12px}
+  .row+.row{margin-top:10px}
+  .btn{display:inline-block;padding:10px 14px;border-radius:10px;border:0;background:#22c55e;color:#fff;font-weight:700;cursor:pointer}
+  .nav{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
+  .nav button{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-weight:600}
+  .index{text-align:center;margin-top:10px;color:#6b7280;font-size:13px}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="status">tap once to flip · double-tap to call · swipe to switch</div>
-    <div class="carousel" id="carousel">
-      <div class="card" id="card">
-        <div class="side front">
-          <div class="header">
-            <div class="name" id="name">name</div>
-            <div class="gem" id="gems">0</div>
-          </div>
-          <div class="avatar"><img id="avatar" alt="profile"/></div>
-          <div class="hint">- tap once to see more info<br>- double-tap to call<br>- swipe left/right for another friend</div>
+<div class="wrap">
+  <div class="status">tap/click = flip · double = call · drag = swipe</div>
+  <div class="stage">
+    <div class="card" id="card">
+      <div class="side front">
+        <div class="header">
+          <div class="name" id="name">name</div>
+          <div class="gem" id="gems">0</div>
         </div>
-        <div class="side back">
-          <div class="row"><span>username</span> <strong id="username">@handle</strong></div>
-          <div class="row"><span>bio</span> <span id="bio">likes hiking, coffee, memes</span></div>
-          <div class="row"><span>phone</span> <strong id="phone">+1 000-000-0000</strong></div>
-          <div class="nav">
-            <button id="flipBack">flip to front</button>
-            <button id="callBtn" class="btn">call</button>
-          </div>
+        <div class="avatar"><img id="avatar" alt="profile"></div>
+        <div class="hint">tap/click once to flip · double to call · drag to turn</div>
+      </div>
+      <div class="side back">
+        <div class="row"><span>username</span> <strong id="username">@handle</strong></div>
+        <div class="row"><span>bio</span> <span id="bio">—</span></div>
+        <div class="row"><span>phone</span> <strong id="phone">—</strong></div>
+        <div class="nav">
+          <button id="flipBack">flip to front</button>
+          <button id="callBtn" class="btn">call</button>
         </div>
       </div>
     </div>
-    <div class="index" id="index"></div>
   </div>
+  <div class="index" id="index"></div>
+</div>
 
 <script>
-  // demo data
+  // ---------- demo data ----------
   const friends = [
-    { name: "john", gems: 12, avatar: "https://i.pravatar.cc/300?img=12", username: "@johnny", bio: "product nerd. weekend cook.", phone: "+15550101" },
-    { name: "maya", gems: 47, avatar: "https://i.pravatar.cc/300?img=5",  username: "@maya",   bio: "design + dogs.",           phone: "+15550102" },
-    { name: "dev",  gems: 3,  avatar: "https://i.pravatar.cc/300?img=33", username: "@dev",    bio: "runner. reads a lot.",     phone: "+15550103" },
+    { name:"john", gems:12, avatar:"https://i.pravatar.cc/300?img=12", username:"@johnny", bio:"product nerd. weekend cook.", phone:"+15550101" },
+    { name:"maya", gems:47, avatar:"https://i.pravatar.cc/300?img=5",  username:"@maya",   bio:"design + dogs.",           phone:"+15550102" },
+    { name:"dev",  gems:3,  avatar:"https://i.pravatar.cc/300?img=33", username:"@dev",    bio:"runner. reads a lot.",     phone:"+15550103" },
   ];
 
+  // ---------- elements ----------
   const els = {
     card: document.getElementById('card'),
     name: document.getElementById('name'),
@@ -104,16 +82,11 @@
     flipBack: document.getElementById('flipBack'),
     callBtn: document.getElementById('callBtn'),
     index: document.getElementById('index'),
-    carousel: document.getElementById('carousel')
   };
 
-  let i = 0;
-  let flipped = false;
-  let tapTimer = null;
-  const TAP_DELAY = 280; // ms for distinguishing single vs double tap
-  let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+  let i = 0, flipped = false;
 
-  function render(idx) {
+  function render(idx){
     const f = friends[idx];
     els.name.textContent = f.name;
     els.gems.textContent = f.gems;
@@ -125,92 +98,106 @@
     if (flipped) flip(false);
   }
 
-  function flip(to = !flipped) {
+  function flip(to=!flipped){
     flipped = to;
     els.card.classList.toggle('flipped', flipped);
   }
 
-  function next(dir = 1) {
+  function callFriend(){
+    const phone = friends[i]?.phone;
+    if (!phone) { alert("no phone on file."); return; }
+    const num = phone.replace(/\s+/g,'');
+    // still works on desktop (will hand off to OS)
+    window.location.href = `tel:${num}`;
+  }
+
+  function next(dir=1){
     i = (i + dir + friends.length) % friends.length;
     render(i);
   }
 
-  function callFriend() {
-    const phone = friends[i]?.phone;
-    if (!phone) {
-      alert("no phone on file.");
+  // ---------- unified gestures via Pointer Events ----------
+  // double-tap detection that doesn't delay single-tap flip
+  let lastTapTime = 0, lastTapX = 0, lastTapY = 0;
+  const DOUBLE_MS = 280, DOUBLE_DIST = 18;
+
+  // interactive swipe
+  let dragging=false, startX=0, curX=0;
+  const SWIPE_THRESHOLD = 90, ROTATE_FACTOR = 18, TRANSLATE_LIMIT = 140;
+
+  function setDrag(dx){
+    const clamped = Math.max(-TRANSLATE_LIMIT, Math.min(TRANSLATE_LIMIT, dx));
+    const rot = (clamped/TRANSLATE_LIMIT)*ROTATE_FACTOR;
+    els.card.style.transition='none';
+    els.card.style.transform = `translateX(${clamped}px) rotate(${rot}deg) ${flipped?'rotateY(180deg)':''}`;
+  }
+  function resetDrag(){
+    els.card.style.transition='transform .35s cubic-bezier(.22,.61,.36,1)';
+    els.card.style.transform = `${flipped?'rotateY(180deg)':'translateX(0) rotate(0)'}`;
+  }
+  function fling(dir){
+    els.card.style.transition='transform .22s ease-out';
+    els.card.style.transform = `translateX(${dir*420}px) rotate(${dir*30}deg)`;
+    setTimeout(()=>{ next(dir); els.card.style.transition=''; els.card.style.transform=''; }, 200);
+  }
+
+  els.card.addEventListener('pointerdown',(e)=>{
+    dragging=true; startX=e.clientX; curX=startX;
+    els.card.setPointerCapture(e.pointerId);
+  });
+
+  els.card.addEventListener('pointermove',(e)=>{
+    if(!dragging) return;
+    curX=e.clientX;
+    setDrag(curX-startX);
+  });
+
+  els.card.addEventListener('pointerup',(e)=>{
+    if(!dragging) return;
+    dragging=false;
+    els.card.releasePointerCapture(e.pointerId);
+    const dx = curX-startX;
+
+    // swipe?
+    if (Math.abs(dx) > SWIPE_THRESHOLD) { fling(dx<0?-1:1); return; }
+    resetDrag();
+
+    // treat as tap (movement small)
+    const now = performance.now();
+    const dt = now - lastTapTime;
+    const dist = Math.hypot(e.clientX-lastTapX, e.clientY-lastTapY);
+
+    if (dt < DOUBLE_MS && dist < DOUBLE_DIST) {
+      // double → call. prevent extra flip from this second tap
+      lastTapTime = 0;
+      callFriend();
       return;
     }
-    // try to open dialer on mobile; otherwise show a confirm
-    if (/Mobi|Android/i.test(navigator.userAgent)) {
-      window.location.href = `tel:${phone.replace(/\s+/g,'')}`;
-    } else {
-      const go = confirm(`call ${friends[i].name} at ${phone}?`);
-      if (go) window.location.href = `tel:${phone.replace(/\s+/g,'')}`;
-    }
-  }
 
-  // tap / double-tap logic
-  function onTap() {
-    if (tapTimer) {
-      // second tap within window → double tap
-      clearTimeout(tapTimer); tapTimer = null;
-      callFriend();
-    } else {
-      tapTimer = setTimeout(() => {
-        flip(true); // single tap → flip to back
-        tapTimer = null;
-      }, TAP_DELAY);
-    }
-  }
+    // single tap → toggle flip immediately
+    flip(!flipped);
 
-  // desktop dblclick should also trigger call
-  els.card.addEventListener('dblclick', (e) => {
-    e.preventDefault();
-    if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; }
+    // store tap for possible next double
+    lastTapTime = now; lastTapX = e.clientX; lastTapY = e.clientY;
+  });
+
+  // desktop dblclick (extra safety so OS double-click also works)
+  els.card.addEventListener('dblclick', (e)=>{
+    lastTapTime = 0; // cancel any pending
     callFriend();
   });
 
-  // touch/swipe detection
-  els.carousel.addEventListener('touchstart', (e) => {
-    const t = e.changedTouches[0];
-    touchStartX = t.clientX; touchStartY = t.clientY; touchStartTime = Date.now();
-  }, {passive:true});
-
-  els.carousel.addEventListener('touchend', (e) => {
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStartX;
-    const dy = t.clientY - touchStartY;
-    const dt = Date.now() - touchStartTime;
-    const SWIPE_DIST = 50, SWIPE_TIME = 500, SWIPE_SLOPE = Math.abs(dx) > Math.abs(dy);
-
-    if (Math.abs(dx) > SWIPE_DIST && dt < SWIPE_TIME && SWIPE_SLOPE) {
-      next(dx < 0 ? 1 : -1); // left → next, right → prev
-      return;
-    }
-    // treat as tap if minimal movement
-    if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && dt < 300) onTap();
-  }, {passive:true});
-
-  // mouse click for desktop single-tap behavior
-  els.card.addEventListener('click', (e) => {
-    // if user clicked back button, let that handler run
-    if (e.target === els.flipBack) return;
-    onTap();
-  });
-
-  // explicit buttons
-  els.flipBack.addEventListener('click', () => flip(false));
+  // buttons
+  els.flipBack.addEventListener('click', ()=>flip(false));
   els.callBtn.addEventListener('click', callFriend);
 
-  // keyboard for convenience in demo
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') next(1);
-    if (e.key === 'ArrowLeft') next(-1);
-    if (e.key === ' ') flip();
+  // keyboard niceties
+  window.addEventListener('keydown',(e)=>{
+    if(e.key==='ArrowRight') next(1);
+    if(e.key==='ArrowLeft') next(-1);
+    if(e.key===' ') flip();
   });
 
-  // init
   render(i);
 </script>
 </body>
